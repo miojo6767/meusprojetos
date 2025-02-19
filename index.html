@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jogo de Kart 2D</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #333;
+    }
+
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background-color: #222;
+    }
+
+    /* Estilo da tela de Game Over */
+    .game-over {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 32px;
+      text-align: center;
+    }
+
+    .game-over p {
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+  <script>
+    let kart;
+    let track;
+    let obstacles = [];
+    let score = 0;
+    let gameOver = false;
+    let gameStarted = false;
+    let lives = 3; // Vidas do jogador
+
+    function setup() {
+      createCanvas(800, 600); // Tamanho da tela
+      track = new Track(); // Criar a pista
+      kart = new Kart(width / 2, height - 80); // Criar o kart
+      frameRate(60); // Controlar a taxa de quadros
+    }
+
+    function draw() {
+      background(50, 50, 50); // Cor de fundo escura para o jogo
+
+      if (!gameStarted) {
+        showStartScreen(); // Tela inicial
+      } else if (!gameOver) {
+        track.show(); // Exibir a pista
+        kart.update(); // Atualizar a posição do kart
+        kart.show();   // Mostrar o kart
+        updateObstacles(); // Atualizar obstáculos
+        showScore();  // Mostrar o placar
+        showLives();  // Mostrar as vidas
+      } else {
+        showGameOver(); // Exibir tela de "Game Over"
+      }
+    }
+
+    // Função para a pista
+    class Track {
+      constructor() {
+        this.trackWidth = width - 100;
+        this.trackHeight = height - 150;
+        this.trackX = 50;
+        this.trackY = 50;
+      }
+
+      show() {
+        fill(200, 200, 200, 150);
+        stroke(0);
+        strokeWeight(4);
+        rect(this.trackX, this.trackY, this.trackWidth, this.trackHeight); // Desenhar a pista
+      }
+    }
+
+    // Função para o kart (agora representado por um ponto verde)
+    class Kart {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.size = 20; // Tamanho do kart (ponto verde)
+        this.speed = 5;
+        this.angle = 0;
+      }
+
+      update() {
+        // Movimentação do kart com o cursor do mouse
+        let targetX = mouseX;
+        let targetY = mouseY;
+
+        // Calcular o ângulo para o kart se mover em direção ao mouse
+        this.angle = atan2(targetY - this.y, targetX - this.x);
+
+        // Mover o kart para a posição do mouse com uma velocidade constante
+        this.x += cos(this.angle) * this.speed;
+        this.y += sin(this.angle) * this.speed;
+
+        // Impedir que o kart saia da pista
+        this.x = constrain(this.x, 50, width - 50);
+        this.y = constrain(this.y, 50, height - 100);
+      }
+
+      show() {
+        fill(0, 255, 0); // Cor verde para o kart
+        noStroke();
+        ellipse(this.x, this.y, this.size); // Desenhar o kart como ponto
+      }
+
+      // Função de colisão com obstáculos
+      collidesWith(obstacle) {
+        let d = dist(this.x, this.y, obstacle.x, obstacle.y);
+        return d < this.size / 2 + obstacle.radius;
+      }
+    }
+
+    // Função para os obstáculos
+    class Obstacle {
+      constructor(x, y, radius) {
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.speed = random(3, 5); // A velocidade dos obstáculos começa entre 3 e 5
+      }
+
+      update() {
+        this.y += this.speed; // Movimentar obstáculos para baixo
+        if (this.y > height) {
+          this.y = -this.radius;
+          this.x = random(100, width - 100); // Posicionar o obstáculo em uma nova posição
+        }
+      }
+
+      show() {
+        fill(255, 0, 0);
+        noStroke();
+        ellipse(this.x, this.y, this.radius * 2); // Desenhar um círculo como obstáculo
+      }
+    }
+
+    // Função para atualizar obstáculos
+    function updateObstacles() {
+      if (frameCount % 60 === 0 && obstacles.length < 10) { // Adicionar mais obstáculos a cada 60 quadros
+        let radius = random(20, 40);
+        let x = random(100, width - 100);
+        obstacles.push(new Obstacle(x, -radius, radius)); // Criar um novo obstáculo
+      }
+
+      for (let obstacle of obstacles) {
+        obstacle.update();
+        obstacle.show();
+
+        // Verificar colisão com o kart
+        if (kart.collidesWith(obstacle)) {
+          lives--;
+          obstacles.splice(obstacles.indexOf(obstacle), 1); // Remover o obstáculo após a colisão
+        }
+      }
+
+      // Aumentar a velocidade dos obstáculos conforme o tempo
+      if (score % 100 === 0 && score !== 0) {
+        for (let obstacle of obstacles) {
+          obstacle.speed *= 1.1; // Aumenta a velocidade dos obstáculos em 10% a cada 100 pontos
+        }
+      }
+
+      // Aumentar a pontuação com o tempo
+      score++;
+    }
+
+    // Função para mostrar a pontuação
+    function showScore() {
+      fill(255);
+      textSize(24);
+      textAlign(RIGHT, TOP);
+      text("Pontuação: " + score, width - 20, 20); // Exibir pontuação no topo direito
+    }
+
+    // Função para mostrar as vidas
+    function showLives() {
+      fill(255);
+      textSize(24);
+      textAlign(LEFT, TOP);
+      text("Vidas: " + lives, 20, 20); // Exibir vidas no topo esquerdo
+    }
+
+    // Função para mostrar a tela de "Game Over"
+    function showGameOver() {
+      fill(255);
+      textSize(48);
+      textAlign(CENTER, CENTER);
+      text("Game Over", width / 2, height / 2 - 40);
+      textSize(24);
+      text("Pontuação Final: " + score, width / 2, height / 2 + 40);
+      text("Pressione 'R' para reiniciar", width / 2, height / 2 + 80);
+    }
+
+    // Função para mostrar a tela inicial
+    function showStartScreen() {
+      fill(255);
+      textSize(32);
+      textAlign(CENTER, CENTER);
+      text("Pressione 'ENTER' para Iniciar", width / 2, height / 2);
+    }
+
+    // Iniciar o jogo
+    function keyPressed() {
+      if (keyCode === ENTER && !gameStarted) {
+        gameStarted = true;
+      }
+
+      // Reiniciar o jogo após Game Over
+      if (keyCode === 82 && gameOver) { // 'R' para reiniciar
+        score = 0;
+        lives = 3;
+        obstacles = [];
+        kart = new Kart(width / 2, height - 80);
+        gameOver = false;
+      }
+    }
+
+    // Função de fim de jogo
+    function checkGameOver() {
+      if (lives <= 0) {
+        gameOver = true;
+      }
+    }
+  </script>
+</body>
+</html>
